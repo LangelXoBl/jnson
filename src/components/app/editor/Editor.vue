@@ -6,7 +6,8 @@ import {
    useLocalStorage,
    useResizeObserver,
 } from '@vueuse/core/index.cjs';
-import { LANGUAGES, PAYLOAD, STORAGE_NAMES } from './types';
+import { LANGUAGES, STORAGE_NAMES } from './types';
+import Button from '@/components/ui/button/Button.vue';
 
 const props = defineProps<{
    type: LANGUAGES;
@@ -14,25 +15,24 @@ const props = defineProps<{
 
 const { type } = toRefs(props);
 
-watch(type, () => {
-   editor.dispose();
-   createEditor();
-   editor.trigger('editor', 'editor.action.formatDocument', {});
-});
+// const emit = defineEmits<(e: 'code-change', payload: PAYLOAD) => void>();
 
-const emit = defineEmits<(e: 'code-change', payload: PAYLOAD) => void>();
-
+const model = defineModel<string>();
 const container = ref<HTMLDivElement>();
 
 let editor: monaco.editor.IStandaloneCodeEditor;
 
 const code = useLocalStorage(`${STORAGE_NAMES.CODE}-${type.value}`, '');
 
+watch(model, (value) => {
+   editor.setValue(value ?? '');
+});
+
 onMounted(() => {
    createEditor();
 });
 
-let resizer = useResizeObserver(container, () => {
+const resizer = useResizeObserver(container, () => {
    editor.layout();
 });
 
@@ -52,21 +52,32 @@ function createEditor() {
       editor.setValue(code.value);
    }
 
-   emit('code-change', {
-      type: type.value,
-      code: code.value,
-   });
+   // emit('code-change', {
+   //    type: type.value,
+   //    code: code.value,
+   // });
 
    editor.onDidChangeModelContent(
       useDebounceFn(() => {
-         if (code.value === editor.getValue()) return;
-         code.value = editor.getValue();
-         emit('code-change', { type: type.value, code: code.value });
+         const newValue = editor.getValue();
+         if (code.value === newValue) return;
+         code.value = isCodeSizeValid(newValue) ? newValue : code.value;
+         model.value = newValue;
       }, 500)
    );
+}
+
+// valid if the code size is greater than supported local storage size
+function isCodeSizeValid(text: string) {
+   return text.length < 5e6;
+}
+
+function formatCode() {
+   editor.trigger('editor', 'editor.action.formatDocument', {});
 }
 </script>
 
 <template>
+   <Button class="" @click="formatCode"> Format </Button>
    <div ref="container" class="w-full h-full"></div>
 </template>
