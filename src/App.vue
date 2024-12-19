@@ -3,7 +3,7 @@ import CodeBox from './components/CodeBox.vue';
 </script>
 
 <template>
-   <main class="w-screen h-screen">
+   <main class="w-full h-full">
       <CodeBox />
    </main>
 </template>

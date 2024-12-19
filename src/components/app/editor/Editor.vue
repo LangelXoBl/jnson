@@ -1,83 +1,65 @@
+<template>
+   <div class="editor-container" ref="editorContainer"></div>
+</template>
+
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, toRefs, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import * as monaco from 'monaco-editor';
-import {
-   useDebounceFn,
-   useLocalStorage,
-   useResizeObserver,
-} from '@vueuse/core/index.cjs';
-import { LANGUAGES, STORAGE_NAMES } from './types';
-import Button from '@/components/ui/button/Button.vue';
+import { useEditorStore } from '@/store/editor';
 
-const props = defineProps<{
-   type: LANGUAGES;
-}>();
-
-const { type } = toRefs(props);
-
-// const emit = defineEmits<(e: 'code-change', payload: PAYLOAD) => void>();
-
-const model = defineModel<string>();
-const container = ref<HTMLDivElement>();
-
+const editorContainer = ref<HTMLDivElement>();
+const store = useEditorStore();
+const { setEditorInstance } = store;
 let editor: monaco.editor.IStandaloneCodeEditor;
 
-const code = useLocalStorage(`${STORAGE_NAMES.CODE}-${type.value}`, '');
-
-watch(model, (value) => {
-   editor.setValue(value ?? '');
-});
-
 onMounted(() => {
-   createEditor();
-});
-
-const resizer = useResizeObserver(container, () => {
-   editor.layout();
-});
-
-onUnmounted(() => {
-   editor.dispose();
-   resizer.stop();
-});
-
-function createEditor() {
-   if (!container.value) return;
-   editor = monaco.editor.create(container.value, {
-      language: type.value,
+   if (!editorContainer.value) return;
+   // Crea el editor
+   editor = monaco.editor.create(editorContainer.value, {
+      value: store.content,
+      language: 'json',
       theme: 'vs-dark',
+      automaticLayout: true,
    });
 
-   if (code.value) {
-      editor.setValue(code.value);
+   // Actualiza el store cuando se edita
+   editor.onDidChangeModelContent(() => {
+      store.setContent(editor.getValue());
+   });
+
+   setEditorInstance(editor);
+});
+
+// Sincroniza el editor si el contenido cambia externamente
+watch(
+   () => store.content,
+   (newContent) => {
+      if (editor && newContent !== editor.getValue()) {
+         updateContent(newContent);
+      }
    }
+);
 
-   // emit('code-change', {
-   //    type: type.value,
-   //    code: code.value,
-   // });
+function updateContent(newValue: string) {
+   if (!editor) return;
+   // Actualiza el texto sin perder historial
+   editor.executeEdits('mi-origen', [
+      {
+         range: editor.getModel()?.getFullModelRange()!,
+         text: newValue,
+         forceMoveMarkers: true,
+      },
+   ]);
 
-   editor.onDidChangeModelContent(
-      useDebounceFn(() => {
-         const newValue = editor.getValue();
-         if (code.value === newValue) return;
-         code.value = isCodeSizeValid(newValue) ? newValue : code.value;
-         model.value = newValue;
-      }, 500)
-   );
-}
-
-// valid if the code size is greater than supported local storage size
-function isCodeSizeValid(text: string) {
-   return text.length < 5e6;
-}
-
-function formatCode() {
-   editor.trigger('editor', 'editor.action.formatDocument', {});
+   // Opcional: Mover el cursor al inicio
+   editor.setPosition({ lineNumber: 1, column: 1 });
 }
 </script>
 
-<template>
-   <Button class="" @click="formatCode"> Format </Button>
-   <div ref="container" class="w-full h-full"></div>
-</template>
+<style scoped>
+.editor-container {
+   width: 100%;
+   height: 500px;
+   border: 1px solid #ccc;
+}
+</style>
