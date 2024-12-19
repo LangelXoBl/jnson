@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import JSONWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 import Editor from '@/components/app/editor/Editor.vue';
-import { LANGUAGES, type PAYLOAD } from '@/components/app/editor/types';
-import { ref, watch } from 'vue';
+import { LANGUAGES } from '@/components/app/editor/types';
 import { Button } from './ui/button';
 import { useEditorStore } from '@/store/editor';
 import { storeToRefs } from 'pinia';
-import Input from './ui/input/Input.vue';
 import Splitter from '@/sections/splitter.vue';
 
 self.MonacoEnvironment = {
@@ -14,20 +12,11 @@ self.MonacoEnvironment = {
 };
 
 const store = useEditorStore();
-const { content, json } = storeToRefs(store);
-const { formatJson, setContent } = store;
-
-const splitRange = ref<{ start?: number; end?: number }>({}); // rango de datos a cortar
-
-function splitItems() {
-   const { start, end } = splitRange.value;
-   setContent(JSON.stringify(json.value.slice(start, end), null, 2));
-}
+const { json } = storeToRefs(store);
+const { formatJson } = store;
 </script>
 
 <template>
-   <!-- <p>jscode(string) {{ content }}</p>
-   <p>jsonData(json) {{ json }}</p> -->
    <p>
       Items <span> {{ Array.isArray(json) ? json.length : 'N/A' }}</span>
    </p>
